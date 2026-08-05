@@ -1,41 +1,44 @@
 # vavoo-iptv
 
-Bu proje, Vavoo.to servisi üzerinden erişilebilen canlı yayın kaynaklarını M3U ve EPG (elektronik program rehberi) formatında bir araya getiren, GitHub Actions ile otomatik olarak güncellenen küçük bir teknik projedir. Amacı; bir Cloudflare Worker, yardımcı scriptler ve otomasyon iş akışlarının (workflows) IPTV/M3U/EPG ekosisteminde nasıl bir arada çalışabileceğini göstermektir.
+This project is a small technical project that aggregates live streaming sources accessible through the Vavoo.to service in M3U and EPG (electronic program guide) formats and is automatically updated using GitHub Actions. Its purpose is to demonstrate how a Cloudflare Worker, helper scripts, and automation workflows can work together within the IPTV/M3U/EPG ecosystem.
 
-## Önemli Uyarı — Telif Hakları ve Sorumluluk
+## Important Notice — Copyright and Liability
 
-Bu proje, **Vavoo.to veya herhangi bir yayıncı kuruluşla resmi bir bağlantıya sahip değildir** ve bu depoda yer alan kod, herhangi bir yayın içeriğinin telif hakkına sahip olduğu anlamına gelmez.
+This project **has no official affiliation with Vavoo.to or any broadcaster**, and the code in this repository does not imply ownership of the copyright for any broadcast content.
 
-Vavoo.to üzerinden erişilen kanalların büyük bir kısmı, ilgili ülkelerin yayın lisanslama sistemleri dışında, **yetkisiz (korsan) şekilde** dağıtılmaktadır. Bu tür bir dağıtım:
+A significant portion of the channels accessible via Vavoo.to are distributed **unauthorized (pirated)** outside the broadcasting licensing systems of the relevant countries. Such distribution:
 
-- İçerik sahiplerinin ve yayıncı kuruluşların haklarını ihlal eder,
-- Birçok ülkede hukuki ve cezai yaptırımlara tabi olabilir,
-- Emek veren yapımcı, yayıncı ve içerik üreticilerine zarar veren, **etik olarak da yanlış bir davranıştır.**
+- Infringes on the rights of content owners and broadcasters,
+- May be subject to legal and criminal penalties in many countries,
+- Is **ethically wrong** and harms the producers, broadcasters, and content creators who put in the work.
 
-Bu depo **yalnızca teknik/eğitim amaçlıdır**; M3U, EPG ve yayın çözümleme mimarisinin nasıl kurgulanabileceğini göstermek içindir. Bu kodu kullanarak yetkisiz yayın içeriğine erişmek, dağıtmak veya bunu ticari/kitlesel şekilde yaymak **tamamen kullanıcının kendi kararı ve kendi sorumluluğundadır.** Proje sahibi bu tür bir kullanımı teşvik etmez, önermez ve sonuçlarından sorumlu tutulamaz.
+This repository is **intended solely for technical/educational purposes**; it is meant to demonstrate how M3U, EPG, and broadcast parsing architectures can be implemented. Using this code to access, distribute, or broadcast unauthorized content commercially or on a mass scale is **entirely the user’s own decision and responsibility.** The project owner does not encourage or recommend such use and cannot be held responsible for its consequences.
 
-## İçerik
+## Contents
 
-- `worker/` — Yayın kaynaklarını çözümleyip yönlendiren Cloudflare Worker kodu
-- `scripts/` — Kanal listesini ve verileri güncelleyen yardımcı scriptler
-- `.github/workflows/` — Listeleri belirli aralıklarla otomatik güncelleyen GitHub Actions tanımları
-- `iptv.m3u` — Oluşturulan örnek M3U yayın listesi
-- `epg.xml` — Oluşturulan örnek EPG (program rehberi) verisi
-- `package.json` — Proje bağımlılıkları ve script tanımları
+- `worker/` — Cloudflare Worker code that parses and routes stream sources
+- `scripts/` — Utility scripts that update the channel list and data
+- `.github/workflows/` — GitHub Actions definitions that automatically update the lists at set intervals
+- `iptv.m3u` — Generated sample M3U playlist
+- `epg.xml` — Sample EPG (electronic program guide) data generated
+- `package.json` — Project dependencies and script definitions
 
-## Nasıl çalışıyor
+## How It Works
 
-1. Scriptler, Vavoo.to tarafında yayınlanan kanal ve akış bilgilerini toplar.
-2. Bu veriler M3U ve EPG formatına dönüştürülür.
-3. Worker, istemciden gelen istekleri karşılayıp ilgili akışa yönlendirme/çözümleme işini yapar.
-4. GitHub Actions workflow'u bu süreci belirli periyotlarla otomatik tekrarlar.
+1. The scripts collect channel and stream information published on Vavoo.to.
+2. This data is converted to M3U and EPG formats.
+3. The worker handles requests from clients and performs the task of routing/resolving them to the relevant stream.
+4. The GitHub Actions workflow automatically repeats this process at set intervals.
 
-## Kurulum (yerel geliştirme için)
+## Setup (for local development)
 
 ```bash
 git clone https://github.com/kadirmetin/vavoo-iptv.git
+
 cd vavoo-iptv
+
 npm install
 ```
 
-Worker'ı yerelde çalıştırmak ve script'leri tetiklemek için `package.json` içindeki script tanımlarına bakabilirsiniz.
+To run the Worker locally and trigger the scripts, refer to the script definitions in `package.json`.
+
