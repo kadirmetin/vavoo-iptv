@@ -4,7 +4,3 @@ compatibility_date = "2025-01-01"
 
 [observability]
 enabled = true
-
-[[kv_namespaces]]
-binding = "VAVOO_KV"
-id = "59caf2a43f29435baa74a30f60e1b615"

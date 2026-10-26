@@ -3,12 +3,11 @@
 const fs = require("node:fs/promises");
 const path = require("node:path");
 const zlib = require("node:zlib");
+const { CATALOG_URL, fetchChannels } = require("../lib/geil.cjs");
 
-const CATALOG_URL = "https://vavoo.to/mediahubmx-catalog.json";
 const GROUP = "Turkey";
 const M3U_FILE = path.join(__dirname, "..", "iptv.m3u");
 const EPG_FILE = path.join(__dirname, "..", "epg.xml");
-const FETCH_TIMEOUT_MS = 20000;
 
 // Upstream free TR EPG (gzipped XMLTV). Matched to Vavoo channels by fuzzy name.
 const EPG_UPSTREAM_URL =
@@ -33,94 +32,6 @@ const PROXY_BASE = (process.env.PROXY_BASE || "").replace(/\/+$/, "");
 const EPG_URL =
   process.env.EPG_URL ||
   "https://raw.githubusercontent.com/kadirmetin/vavoo-iptv/main/epg.xml";
-
-// Vavoo requires browser-like headers or it returns { error: "Validation error" }
-const HEADERS = {
-  "content-type": "application/json; charset=utf-8",
-  accept: "*/*",
-  "accept-language": "en-US,en;q=0.9,tr;q=0.8",
-  "cache-control": "no-cache",
-  pragma: "no-cache",
-  origin: "https://vavoo.to",
-  referer: "https://vavoo.to/live",
-  dnt: "1",
-  "sec-ch-ua":
-    '"Not=A?Brand";v="99", "Google Chrome";v="151", "Chromium";v="151"',
-  "sec-ch-ua-mobile": "?0",
-  "sec-ch-ua-platform": '"macOS"',
-  "sec-fetch-dest": "empty",
-  "sec-fetch-mode": "cors",
-  "sec-fetch-site": "same-origin",
-  "user-agent":
-    "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/151.0.0.0 Safari/537.36",
-};
-
-function buildBody(cursor) {
-  return JSON.stringify({
-    language: "de",
-    region: "DE",
-    catalogId: "iptv",
-    id: "",
-    adult: false,
-    search: "",
-    sort: "name",
-    filter: { group: GROUP },
-    cursor,
-  });
-}
-
-async function fetchPage(cursor) {
-  const body = buildBody(cursor);
-  let lastErr;
-  for (let attempt = 1; attempt <= 5; attempt++) {
-    try {
-      const res = await fetch(CATALOG_URL, {
-        method: "POST",
-        headers: HEADERS,
-        body,
-        signal: AbortSignal.timeout(FETCH_TIMEOUT_MS),
-      });
-      if (!res.ok) {
-        throw new Error(`HTTP ${res.status} ${res.statusText}`);
-      }
-      const data = await res.json();
-      if (data && data.error) {
-        throw new Error(`Vavoo error: ${data.error}`);
-      }
-      return data;
-    } catch (err) {
-      lastErr = err;
-      const wait = 1000 * attempt;
-      console.warn(
-        `Attempt ${attempt} failed (${err.message}). Retrying in ${wait}ms...`
-      );
-      await new Promise((r) => setTimeout(r, wait));
-    }
-  }
-  throw lastErr;
-}
-
-async function fetchAll() {
-  const items = [];
-  let cursor = null;
-  let page = 0;
-  // Safety cap to avoid infinite loops if the API misbehaves
-  const MAX_PAGES = 200;
-  do {
-    page++;
-    const data = await fetchPage(cursor);
-    if (Array.isArray(data.items)) items.push(...data.items);
-    console.log(
-      `Page ${page}: fetched ${data.items?.length ?? 0} items, nextCursor=${data.nextCursor ?? "null"}`
-    );
-    cursor = data.nextCursor ?? null;
-    if (page >= MAX_PAGES) {
-      console.warn(`Reached MAX_PAGES (${MAX_PAGES}), stopping.`);
-      break;
-    }
-  } while (cursor !== null && cursor !== undefined);
-  return items;
-}
 
 // -- categorization --------------------------------------------------------
 
@@ -560,13 +471,13 @@ async function main() {
     console.log(`Using PROXY_BASE=${PROXY_BASE}`);
   } else {
     console.warn(
-      "WARNING: PROXY_BASE is empty. Raw vavoo.to URLs will be written; players without VPN may fail."
+      "WARNING: PROXY_BASE is empty. Geil page URLs will be written; use the Worker for playback."
     );
   }
   console.log(`EPG URL (published): ${EPG_URL}`);
   console.log(`EPG UPSTREAM (source): ${EPG_UPSTREAM_URL}`);
 
-  const items = await fetchAll();
+  const items = await fetchChannels();
   console.log(`Total items: ${items.length}`);
 
   // Deterministic order for clean git diffs
@@ -596,7 +507,7 @@ async function main() {
     );
   } catch (err) {
     console.warn(
-      `Upstream EPG unavailable (${err.message}); falling back to Vavoo inline EPG only.`
+      `Upstream EPG unavailable (${err.message}); falling back to Geil inline EPG.`
     );
   }
 
@@ -611,7 +522,7 @@ async function main() {
     );
   } else if (IPTVORG_GRAB_DIR) {
     console.warn(
-      `iptv-org grab dir "${IPTVORG_GRAB_DIR}" empty or missing; only epgshare01 + Vavoo inline will be used.`
+      `iptv-org grab dir "${IPTVORG_GRAB_DIR}" empty or missing; only epgshare01 + Geil inline will be used.`
     );
   }
 
@@ -637,7 +548,7 @@ async function main() {
     const name = sanitizeName(it.name);
     if (!name) continue;
 
-    // Priority: iptv-org grab (real TR descriptions) > epgshare01 (title-only) > Vavoo inline
+    // Priority: iptv-org grab (real TR descriptions) > epgshare01 (title-only) > Geil inline
     const grabId = matchUpstreamId(name, grabIdx);
     if (grabId) {
       vavooToEpgId.set(vavooId, grabId);
@@ -656,10 +567,10 @@ async function main() {
     if (logoResolver && logoResolver(name)) logoMatched++;
   }
   console.log(
-    `Channel binding: grab=${grabMatched}, epgshare01=${upstreamMatched}, vavoo-only=${items.length - grabMatched - upstreamMatched} (total ${items.length})`
+    `Channel binding: grab=${grabMatched}, epgshare01=${upstreamMatched}, geil-only=${items.length - grabMatched - upstreamMatched} (total ${items.length})`
   );
   console.log(
-    `Logo binding:    ${logoMatched}/${items.length} Vavoo channels matched an iptv-org logo`
+    `Logo binding:    ${logoMatched}/${items.length} Geil channels matched an iptv-org logo`
   );
 
   const m3u = toM3U(items, vavooToEpgId, logoResolver);
